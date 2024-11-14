@@ -6,6 +6,7 @@ import time
 import dotenv
 import jwt
 import requests
+from collections import namedtuple
 
 dotenv.load_dotenv()
 
@@ -13,30 +14,31 @@ logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-CIPHEROWL_TOKEN_PATH = os.path.expanduser("~/.cipherowl/token-cache.json")
 CIPHEROWL_API_URL = "https://svc.cipherowl.ai"
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
 
-def get_token_from_cache():
-    if os.path.exists(CIPHEROWL_TOKEN_PATH):
-        with open(CIPHEROWL_TOKEN_PATH, "r") as f:
-            token_cache = json.load(f)
-            token = token_cache.get("access_token")
+TokenCache = namedtuple("TokenCache", ["access_token", "expires_at"])
+token_cache = None
 
-            # ensure token is not expired
-            decoded = jwt.decode(token, options={"verify_signature": False})
-            if time.time() < decoded["exp"]:
-                logging.debug("Get token from cache")
-                return token
-    return None
+
+def get_token_from_cache():
+    if token_cache is None:
+        return None
+
+    if time.time() > token_cache.expires_at:
+        return None
+
+    logging.debug("Get token from cache")
+    return token_cache.access_token
 
 
 def write_token_to_cache(token):
-    os.makedirs(os.path.dirname(CIPHEROWL_TOKEN_PATH), exist_ok=True)
-    with open(CIPHEROWL_TOKEN_PATH, "w") as f:
-        json.dump({"access_token": token}, f)
+    global token_cache
+    decoded = jwt.decode(token, options={"verify_signature": False})
+    expires_at = decoded["exp"]
+    token_cache = TokenCache(access_token=token, expires_at=expires_at)
     logging.debug("Write token to cache")
 
 

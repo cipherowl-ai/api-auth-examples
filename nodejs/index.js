@@ -15,40 +15,29 @@ const logger = {
 };
 
 // Constants
-const CIPHEROWL_TOKEN_PATH = path.join(os.homedir(), '.cipherowl', 'token-cache.json');
 const CIPHEROWL_API_URL = 'https://svc.cipherowl.ai';
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
 
-async function getTokenFromCache() {
-    try {
-        const fileContent = await fs.readFile(CIPHEROWL_TOKEN_PATH, 'utf-8');
-        const tokenCache = JSON.parse(fileContent);
-        const token = tokenCache.access_token;
+var TOKEN_CACHE = {};
 
-        // Ensure token is not expired
-        const decoded = jwt.decode(token);
-        if (decoded && Date.now() / 1000 < decoded.exp) {
-            logger.debug('Get token from cache');
-            return token;
-        }
-        return null;
-    } catch (error) {
+async function getTokenFromCache() {
+    const token = TOKEN_CACHE.access_token;
+    const expiresAt = TOKEN_CACHE.expires_at;
+    if (!token || Date.now() / 1000 > expiresAt) {
         return null;
     }
+
+    logger.debug('Get token from cache');
+    return token;
 }
 
 async function writeTokenToCache(token) {
-    try {
-        await fs.mkdir(path.dirname(CIPHEROWL_TOKEN_PATH), { recursive: true });
-        await fs.writeFile(
-            CIPHEROWL_TOKEN_PATH,
-            JSON.stringify({ access_token: token }, null, 2)
-        );
-        logger.debug('Write token to cache');
-    } catch (error) {
-        logger.error('Failed to write token to cache:', error.message);
-    }
+    const decoded = jwt.decode(token);
+    TOKEN_CACHE["access_token"] = token;
+    TOKEN_CACHE["expires_at"] = decoded.exp;
+
+    logger.debug('Write token to cache');
 }
 
 async function getTokenFromServer() {

@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -18,35 +17,32 @@ const (
 	cipherowlApiUrl = "https://svc.cipherowl.ai"
 )
 
-var (
-	cipherowlTokenPath string
-	clientID           string
-	clientSecret       string
-)
-
 type TokenCache struct {
-	AccessToken string `json:"access_token"`
+	AccessToken string
+	ExpiresAt   time.Time
 }
 
 type TokenResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
+var (
+	clientID     string
+	clientSecret string
+	tokenCache   *TokenCache
+)
+
 func init() {
 	// Initialize logging
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	// Initialize token cache
+	tokenCache = &TokenCache{}
 
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
 		log.Printf("Warning: Error loading .env file: %v", err)
 	}
-
-	// Set up token path
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatal("Error getting home directory:", err)
-	}
-	cipherowlTokenPath = filepath.Join(homeDir, ".cipherowl", "token-cache.json")
 
 	// Get environment variables
 	clientID = os.Getenv("CLIENT_ID")
@@ -54,55 +50,37 @@ func init() {
 }
 
 func getTokenFromCache() (string, error) {
-	data, err := os.ReadFile(cipherowlTokenPath)
+	if tokenCache.AccessToken == "" {
+		return "", fmt.Errorf("no token in cache")
+	}
+
+	if time.Now().After(tokenCache.ExpiresAt) {
+		return "", fmt.Errorf("token expired")
+	}
+
+	log.Println("Get token from cache")
+	return tokenCache.AccessToken, nil
+}
+
+func writeTokenToCache(token string) error {
+	// Decode token without verifying signature to get expiration
+	parsedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	var tokenCache TokenCache
-	if err := json.Unmarshal(data, &tokenCache); err != nil {
-		return "", err
-	}
-
-	// Decode token without verifying signature
-	token, _, err := new(jwt.Parser).ParseUnverified(tokenCache.AccessToken, jwt.MapClaims{})
-	if err != nil {
-		return "", err
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return "", fmt.Errorf("invalid token claims")
+		return fmt.Errorf("invalid token claims")
 	}
 
 	exp, ok := claims["exp"].(float64)
 	if !ok {
-		return "", fmt.Errorf("invalid exp claim")
+		return fmt.Errorf("invalid exp claim")
 	}
 
-	if time.Now().Unix() < int64(exp) {
-		log.Println("Get token from cache")
-		return tokenCache.AccessToken, nil
-	}
-
-	return "", fmt.Errorf("token expired")
-}
-
-func writeTokenToCache(token string) error {
-	dir := filepath.Dir(cipherowlTokenPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	tokenCache := TokenCache{AccessToken: token}
-	data, err := json.Marshal(tokenCache)
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(cipherowlTokenPath, data, 0644); err != nil {
-		return err
-	}
+	tokenCache.AccessToken = token
+	tokenCache.ExpiresAt = time.Unix(int64(exp), 0)
 
 	log.Println("Write token to cache")
 	return nil
