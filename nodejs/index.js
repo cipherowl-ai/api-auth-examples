@@ -75,8 +75,7 @@ async function getToken() {
 
 async function main() {
     try {
-        const project = 'partner';
-        const url = `${CIPHEROWL_API_URL}/api/v1/sanction?project=${project}&chain=bitcoin_mainnet&address=12udabs2TkX7NXCSj6KpqXfakjE52ZPLhz`;
+        const url = `${CIPHEROWL_API_URL}/api/screen/v1/chains/evm/addresses/0xf4377eda661e04b6dda78969796ed31658d602d4?config=co-high_risk_hops_2`;
 
         const token = await getToken();
         const response = await axios.get(url, {

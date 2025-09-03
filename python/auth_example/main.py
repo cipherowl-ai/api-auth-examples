@@ -83,7 +83,7 @@ def main():
     token = token_manager.get_token()
     headers = {"Authorization": f"Bearer {token}"}
 
-    url = f"{cipherowl_api_url}/api/v1/sanction?chain=bitcoin_mainnet&address=12udabs2TkX7NXCSj6KpqXfakjE52ZPLhz"
+    url = f"{cipherowl_api_url}/api/screen/v1/chains/evm/addresses/0xf4377eda661e04b6dda78969796ed31658d602d4?config=co-high_risk_hops_2"
     response = requests.request("GET", url, headers=headers)
     response.raise_for_status()
     print(json.dumps(response.json(), indent=4))

@@ -22,5 +22,5 @@ cp .env.example .env
 ## Run
 
 ```
-python example/main.py
+python auth_example/main.py
 ```

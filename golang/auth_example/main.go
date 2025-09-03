@@ -143,9 +143,8 @@ func getToken() (string, error) {
 }
 
 func main() {
-	project := "partner"
-	url := fmt.Sprintf("%s/api/v1/sanction?project=%s&chain=bitcoin_mainnet&address=12udabs2TkX7NXCSj6KpqXfakjE52ZPLhz",
-		cipherowlApiUrl, project)
+	url := fmt.Sprintf("%s/api/screen/v1/chains/evm/addresses/0xf4377eda661e04b6dda78969796ed31658d602d4?config=co-high_risk_hops_2",
+		cipherowlApiUrl)
 
 	token, err := getToken()
 	if err != nil {
