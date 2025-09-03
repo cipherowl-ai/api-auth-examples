@@ -22,5 +22,5 @@ cp .env.example .env
 ## Run
 
 ```
-go run cmd/main.go
+go run auth_example/main.go
 ```
